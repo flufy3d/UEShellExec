@@ -2,6 +2,10 @@
 	"FileVersion" : 3,
 	"Version" : 1,
 	"VersionName" : "1.0",
+	"FriendlyName" : "UE4 Shell Exec Plugin",
+	"Description" : "Exec Shell command by BP or C++",
+	"Category" : "Shell",
+	"CreatedBy" : "flufy3d",
 	"CreatedByURL" : "http://epicgames.com",
 	"DocsURL" : "",
 	"MarketplaceURL" : "",
@@ -15,6 +19,7 @@
 		{
 			"Name" : "UEShellExec",
 			"Type" : "Developer",
+			"LoadingPhase" : "PreDefault"
 		}
 	]
 }
