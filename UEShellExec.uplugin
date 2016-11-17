@@ -3,7 +3,7 @@
 	"Version" : 1,
 	"VersionName" : "1.0",
 	"FriendlyName" : "UE4 Shell Exec Plugin",
-	"Description" : "UE4 Exec Shell command by BP or C++",
+	"Description" : "UE4 Exec Shell command by BP or C++ !",
 	"Category" : "Shell",
 	"CreatedBy" : "flufy3d",
 	"CreatedByURL" : "http://epicgames.com",
