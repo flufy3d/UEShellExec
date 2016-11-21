@@ -1,9 +1,24 @@
 #include "UEShellExecPrivatePCH.h"
 
+#if PLATFORM_WINDOWS
 #include "WindowsSpec.h"
+#else
+#include "UnixSpec.h"
+#endif
 
-#include <stdio.h>  
-#include <stdlib.h> 
+
+
+USystemDoneObject::USystemDoneObject(const class FObjectInitializer& PCIP)
+	: Super(PCIP)
+{
+
+}
+UPopenDoneObject::UPopenDoneObject(const class FObjectInitializer& PCIP)
+	: Super(PCIP)
+{
+
+}
+
 
 UShellExec::UShellExec(const class FObjectInitializer& PCIP)
 : Super(PCIP)
@@ -12,29 +27,26 @@ UShellExec::UShellExec(const class FObjectInitializer& PCIP)
 }
 
 
-class ShellExecAutoDeleteAsyncTask : public FNonAbandonableTask
+class CallSystemTask : public FNonAbandonableTask
 {
-	friend class FAutoDeleteAsyncTask<ShellExecAutoDeleteAsyncTask>;
+	friend class FAutoDeleteAsyncTask<CallSystemTask>;
 
 	FString _cmd;
+	USystemDoneObject* Obj;
 
-	ShellExecAutoDeleteAsyncTask(const FString& cmd)
-		: _cmd(cmd)
+	CallSystemTask(const FString& cmd, USystemDoneObject* obj)
+		: _cmd(cmd),
+		Obj(obj)
 	{
 	}
 
 	void DoWork()
 	{
 		int ret = 0;
-#if PLATFORM_WINDOWS
-		const TCHAR* _str = *_cmd;
-		ret = system_hidden(_str);	
-#else
-		char* _str = TCHAR_TO_ANSI(*_cmd);
-		ret = system(_str);
-#endif
-		UE_LOG(LogUEShellExec, Log, TEXT("ShellExecAutoDeleteAsyncTask..."));
-		UE_LOG(LogUEShellExec, Log, TEXT("UShellExec::System Process returned %d."), ret);
+		ret = SystemWrap(*_cmd);
+		Obj->SystemDoneEvent.Broadcast(_cmd, ret);
+		UE_LOG(LogUEShellExec, Log, TEXT("CallSystemTask..."));
+
 	}
 
 	FORCEINLINE TStatId GetStatId() const
@@ -43,61 +55,76 @@ class ShellExecAutoDeleteAsyncTask : public FNonAbandonableTask
 	}
 };
 
-
-void UShellExec::System_Background(const FString& cmd)
+class CallPopenTask : public FNonAbandonableTask
 {
-	// start an example job
-	(new FAutoDeleteAsyncTask<ShellExecAutoDeleteAsyncTask>(cmd))->StartBackgroundTask();
+	friend class FAutoDeleteAsyncTask<CallPopenTask>;
 
-	// do an example job now, on this thread
-	//(new FAutoDeleteAsyncTask<ShellExecAutoDeleteAsyncTask>(cmd))->StartSynchronousTask();
+	FString _cmd;
+	UPopenDoneObject* Obj;
+
+	CallPopenTask(const FString& cmd, UPopenDoneObject* obj)
+		: _cmd(cmd),
+		Obj(obj)
+	{
+	}
+
+	void DoWork()
+	{
+		FString ret;
+		ret = PopenWrap(*_cmd);
+		Obj->PopenDoneEvent.Broadcast(_cmd, ret);
+		UE_LOG(LogUEShellExec, Log, TEXT("CallPopenTask..."));
+	}
+
+	FORCEINLINE TStatId GetStatId() const
+	{
+		RETURN_QUICK_DECLARE_CYCLE_STAT(ShellExecAutoDeleteAsyncTask, STATGROUP_ThreadPoolAsyncTasks);
+	}
+};
+
+USystemDoneObject* UShellExec::System_Background(UObject* WorldContextObject,const FString& cmd)
+{
+	
+	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject);
+	USystemDoneObject* tempObject = Cast<USystemDoneObject>(StaticConstructObject_Internal(USystemDoneObject::StaticClass()));
+
+	
+	(new FAutoDeleteAsyncTask<CallSystemTask>(cmd, tempObject))->StartBackgroundTask();
+
+	return tempObject;
+
+
 }
+
 
 int UShellExec::System(const FString& cmd)
 {
 	int ret = 0;
-	char* _str = TCHAR_TO_ANSI(*cmd);
-	ret = system(_str);
+	ret = SystemWrap(*cmd);
 	UE_LOG(LogUEShellExec, Log, TEXT("UShellExec::System Process returned %d."), ret);
 	return ret;
+
+}
+
+
+UPopenDoneObject* UShellExec::Popen_Background(UObject* WorldContextObject, const FString& cmd)
+{
+
+	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject);
+	UPopenDoneObject* tempObject = Cast<UPopenDoneObject>(StaticConstructObject_Internal(UPopenDoneObject::StaticClass()));
+
+
+	(new FAutoDeleteAsyncTask<CallPopenTask>(cmd, tempObject))->StartBackgroundTask();
+
+	return tempObject;
+
 
 }
     
 FString UShellExec::Popen(const FString& cmd)
 {
 	FString ret;
-	char* _str = TCHAR_TO_ANSI(*cmd);
-	
-	const int buffer_size = 1024;
-	char psBuffer[buffer_size];
-	FILE   *pPipe;
-
-
-	if ((pPipe = _popen(_str, "rt")) == NULL)
-	{
-		UE_LOG(LogUEShellExec, Error, TEXT("Error: Failed to open the pipe."));
-		return ret;
-	}
-
-	/* Read pipe until end of file, or an error occurs. */
-
-	while (fgets(psBuffer, buffer_size, pPipe))
-	{
-		FString tmp(psBuffer);
-		ret += tmp;
-	}
-
-	/* Close pipe and print return value of pPipe. */
-	if (feof(pPipe))
-	{
-		UE_LOG(LogUEShellExec, Log, TEXT("UShellExec::Popen Process returned %d."), _pclose(pPipe));
-	}
-	else
-	{
-		UE_LOG(LogUEShellExec, Error, TEXT("Error: Failed to read the pipe to the end."));
-	}
-
-
+	ret = PopenWrap(*cmd);
 	return ret;
 
 }

@@ -1,8 +1,7 @@
 #pragma once
 
-
-#include "windows.h"
-
+#include <stdio.h>  
+#include <stdlib.h> 
 
 
 int SystemWrap(const FString& cmd);
