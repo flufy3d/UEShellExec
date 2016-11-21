@@ -35,4 +35,3 @@ public:
 		return FModuleManager::Get().IsModuleLoaded( "UEShellExec" );
 	}
 };
-

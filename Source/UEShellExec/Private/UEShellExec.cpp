@@ -10,7 +10,6 @@ class FUEShellExec : public IUEShellExec
 	virtual void ShutdownModule() override;
 };
 
-IMPLEMENT_MODULE( FUEShellExec, UEShellExec )
 
 
 
@@ -28,3 +27,6 @@ void FUEShellExec::ShutdownModule()
 
 
 
+IMPLEMENT_MODULE( FUEShellExec, UEShellExec)
+
+DEFINE_LOG_CATEGORY( LogUEShellExec )
